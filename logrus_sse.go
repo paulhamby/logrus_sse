@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"gopkg.in/antage/eventsource.v1"
@@ -22,7 +23,19 @@ type SseHook struct {
 //    log.AddHook(hook)
 //}
 func NewSseHook(port string) (*SseHook, error) {
-	es := eventsource.New(nil, nil)
+	es := eventsource.New(
+		&eventsource.Settings{
+			Timeout:        5 * time.Second,
+			CloseOnTimeout: false,
+			IdleTimeout:    30 * time.Minute,
+		},
+		func(req *http.Request) [][]byte {
+			return [][]byte{
+				[]byte("X-Accel-Buffering: no"),
+				[]byte("Access-Control-Allow-Origin: *"),
+			}
+		},
+	)
 	http.Handle("/log", es)
 	go func() {
 		err := http.ListenAndServe(port, nil)
